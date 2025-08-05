@@ -28,6 +28,7 @@ const (
 // @API VPCEP DELETE /v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}
 // @API VPCEP GET /v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}
 // @API VPCEP PUT /v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}
+// @API VPCEP PUT /v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}/name
 // @API VPCEP POST /v1/{project_id}/vpc-endpoint-services
 // @API VPCEP GET /v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}/connections
 // @API VPCEP POST /v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}/permissions/action
@@ -412,9 +413,27 @@ func resourceVPCEndpointServiceUpdate(ctx context.Context, d *schema.ResourceDat
 		return diag.Errorf("error creating VPC endpoint client: %s", err)
 	}
 
-	if d.HasChanges("name", "approval", "port_id", "port_mapping", "description", "tcp_proxy", "ip_address") {
+	// update service name
+	if d.HasChange("name") {
+		httpUrl := "v1/{project_id}/vpc-endpoint-services/{vpc_endpoint_service_id}/name"
+		updatePath := vpcepClient.Endpoint + httpUrl
+		updatePath = strings.ReplaceAll(updatePath, "{project_id}", vpcepClient.ProjectID)
+		updatePath = strings.ReplaceAll(updatePath, "{vpc_endpoint_service_id}", d.Id())
+		updateOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+			JSONBody: map[string]interface{}{
+				"endpoint_service_name": d.Get("name").(string),
+			},
+		}
+
+		_, err = vpcepClient.Request("PUT", updatePath, &updateOpt)
+		if err != nil {
+			return diag.Errorf("error updating name of VPC endpoint service %s: %s", d.Id(), err)
+		}
+	}
+
+	if d.HasChanges("approval", "port_id", "port_mapping", "description", "tcp_proxy", "ip_address") {
 		updateOpts := services.UpdateOpts{
-			ServiceName: d.Get("name").(string),
 			Description: utils.String(d.Get("description").(string)),
 		}
 
